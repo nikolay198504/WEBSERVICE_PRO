@@ -1,12 +1,11 @@
 from dotenv import load_dotenv
 import os
 import openai
-import asyncio  # Импортируем asyncio для асинхронных операций
+import asyncio
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.docstore.document import Document
 from langchain_community.vectorstores import FAISS
-from langchain_openai import OpenAIEmbeddings  # Используем langchain_openai
-from langchain_openai import ChatOpenAI  # Используем ChatOpenAI
+from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 from langchain.schema import AIMessage, HumanMessage, SystemMessage
 
 # Загрузка переменных окружения
@@ -14,6 +13,7 @@ load_dotenv(os.path.join(os.path.dirname(__file__), '.env'))
 
 class Chunk:
     def __init__(self):
+        # Установка API-ключа
         openai.api_key = os.getenv("OPENAI_API_KEY")
         if not openai.api_key:
             raise ValueError("Ключ API OpenAI не найден. Проверьте переменные окружения.")
@@ -21,11 +21,14 @@ class Chunk:
 
     def base_load(self):
         # Чтение базы знаний
-        with open(os.path.join(os.path.dirname(__file__), 'base', 'Rules.txt'), 'r', encoding='utf-8') as file:
+        rules_path = os.path.join(os.path.dirname(__file__), 'base', 'Rules.txt')
+        if not os.path.exists(rules_path):
+            raise FileNotFoundError(f"Файл {rules_path} не найден.")
+        
+        with open(rules_path, 'r', encoding='utf-8') as file:
             document = file.read()
 
-
-        # Создание чанков
+        # Разбиение текста на чанки
         splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=0)
         source_chunks = splitter.split_text(document)
         docs = [Document(page_content=chunk) for chunk in source_chunks]
@@ -34,7 +37,7 @@ class Chunk:
         embeddings = OpenAIEmbeddings(openai_api_key=openai.api_key)
         self.db = FAISS.from_documents(docs, embeddings)
 
-        # Формирование инструкции
+        # Формирование системного сообщения
         self.system = '''
             Ты - нейро-консультант компании АльфаСтрахование.
             Отвечай на вопросы клиентов на основе предоставленных Правил страхования.
@@ -65,17 +68,20 @@ class Chunk:
         # Инициализация ChatOpenAI
         chat = ChatOpenAI(model_name='gpt-4', temperature=0, openai_api_key=openai.api_key)
 
-        # Получение ответа (асинхронный вызов)
+        # Получение ответа
         response = await chat.agenerate([messages])
 
-        # Возвращаем ответ ассистента
-        return response.generations[0][0].text
+        # Возвращаем текст ответа
+        return response.generations[0][0].text.strip()
 
-# Запуск асинхронного метода get_answer
+# Запуск программы
 if __name__ == "__main__":
     chunk = Chunk()
     query = 'Какие исключения предусмотрены в страховом договоре?'
 
-    # Запускаем асинхронную функцию
-    result = asyncio.run(chunk.get_answer(query))
-    print(result)
+    try:
+        # Запускаем асинхронную функцию
+        result = asyncio.run(chunk.get_answer(query))
+        print(result)
+    except Exception as e:
+        print(f"Ошибка: {e}")
