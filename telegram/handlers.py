@@ -13,14 +13,14 @@ TOKEN = os.getenv('TG_TOKEN')
 
 # функция-обработчик команды /start
 async def start(update, context):
-    await update.message.reply_text("Привет! Это пример простого бота.")
+    await update.message.reply_text("Добро пожаловать, мой дорогой друг!")
 
 # функция-обработчик команды /help
 async def help(update, context):
     message = '''
-        Этот бот поддерживает:
+        Этот бот предназначен для обучения:
         \n\U0001F539 команду /start - начало работы бота
-        \n\U0001F539 команду /help - помощь
+        \n\U00002757 команду /help - помощь
         \n\U0001F539 текстовые сообщения
         \n\U0001F539 фотографии
         \n\U0001F539 голосовые сообщения"
@@ -29,7 +29,7 @@ async def help(update, context):
 
 # функция-обработчик текстовых сообщений
 async def text(update, context):
-    await update.message.reply_text('Мы получили от тебя текстовое сообщение!')
+    await update.message.reply_text('Текст, текст, текст…')
 
 # функция-обработчик сообщений с изображениями
 async def image(update, context):
