@@ -21,28 +21,51 @@ async def start(update: Update, _):
 
 # функция-обработчик сообщений с изображениями
 async def image(update: Update, _):
-    
-    # сообщение от бота
-    await update.message.reply_text('Изображение сохранено в файл media/save.jpg')
+    # получаем язык пользователя
+    user_language = update.effective_user.language_code
 
-    # получаем изображение из апдейта
-    quality = -1 # качество -1 - высокое, 0 - низкое
-    file = await update.message.photo[quality].get_file()
-    
+    # задаем текст сообщения в зависимости от языка
+    if user_language == "ru":
+        message = "Фотография сохранена!"
+    else:
+        message = "Photo saved!"
+
+    # получаем изображение из апдейта (с максимальным качеством)
+    file = await update.message.photo[-1].get_file()
+
+    # путь для сохранения изображения
+    save_path = f'photos/{file.file_id}.jpg'
+
     # сохраняем изображение на диск
-    await file.download_to_drive('media/save.jpg')
+    await file.download_to_drive(save_path)
+
+    # отправляем сообщение пользователю
+    await update.message.reply_text(message)
 
 # функция-обработчик голосовых сообщений
+# функция-обработчик голосовых сообщений
 async def voice(update: Update, _):
-    
-    # сообщение от бота
-    await update.message.reply_text('Голосовое сообщение сохранено в файл media/save.mp3')
+    # получаем язык пользователя
+    user_language = update.effective_user.language_code
+
+    # задаем подписи в зависимости от языка
+    if user_language == "ru":
+        caption = "Голосовое сообщение получено!"
+    else:
+        caption = "We've received a voice message from you!"
+
+    # отправляем картинку с подписью
+    await update.message.reply_photo(
+        'media/voice_response.png',  # путь к изображению
+        caption=caption  # подпись на выбранном языке
+    )
 
     # получаем файл голосового сообщения из апдейта
     new_file = await update.message.voice.get_file()
 
     # сохраняем голосовое сообщение на диск
     await new_file.download_to_drive('media/voice.mp3')
+
 
 # функция "Запуск бота"
 def main():
