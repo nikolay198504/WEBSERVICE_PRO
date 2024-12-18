@@ -16,24 +16,26 @@ TOKEN = os.getenv('TG_TOKEN')
 
 # создаем кнопки
 buttons = [
-    InlineKeyboardButton('Новая задача', callback_data = 'task'),
-    InlineKeyboardButton('История', callback_data = 'history'),
-    InlineKeyboardButton(
-        'Документация',
-        callback_data = 'docs',
-        url = 'https://docs.python-telegram-bot.org/en/stable/index.html'
-    )    
+    InlineKeyboardButton('Английский', callback_data = 'We’ve received a message from you!'),
+    InlineKeyboardButton('Русский', callback_data = 'Текстовое сообщение получено!'),
+    #InlineKeyboardButton(
+        #'Документация',
+        #callback_data = 'docs',
+        #url = 'https://docs.python-telegram-bot.org/en/stable/index.html'
+    #)    
 ]  
 
 # форма inline клавиатуры
 form_ver = True # если стоит True то кнопки распологаются вертикально
 if form_ver:    # если вертикальное расположение
     inline_frame = [
-        [buttons[0]], [buttons[1]], [buttons[2]]
+        [buttons[0]], [buttons[1]], #[buttons[2]]
     ]
 else:
     inline_frame = [
-        [buttons[0], buttons[1], buttons[2]]
+        [buttons[0], buttons[1], 
+        #buttons[2]
+        ]
     ]    
 
 # создаем inline клавиатуру
@@ -43,7 +45,7 @@ inline_keyboard = InlineKeyboardMarkup(inline_frame)
 async def start(update: Update, _):
 
     # прикрепляем inline клавиатуру к сообщению
-    await update.message.reply_text('Выберите пункт меню:', reply_markup=inline_keyboard)
+    await update.message.reply_text('Выберите язык интерфейса:', reply_markup=inline_keyboard)
 
 # функция-обработчик нажатий на кнопки
 async def button(update: Update, context):
