@@ -78,7 +78,7 @@ async def get_answer_async(question: ModelAnswer):
     answer = await chunk.get_answer_async(query=question.text)  # Асинхронный вызов API
     return {'message': answer}  # Возвращаем результат
 
-# Обработка распознавания изображений
+# Обработка распознавания изображений для telegram bot
 @app.post('/api/image_ocr')
 async def post_ocr(question: ModelOcr):
     answer = await chunk.ocr_image({

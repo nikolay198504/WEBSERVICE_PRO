@@ -8,6 +8,10 @@ from langchain.docstore.document import Document
 from langchain_community.vectorstores import FAISS
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 from langchain.schema import AIMessage, HumanMessage, SystemMessage
+import aiohttp
+import time
+import json
+from fastapi import HTTPException
 
 # Загрузка переменных окружения
 load_dotenv(os.path.join(os.path.dirname(__file__), '.env'))
@@ -84,6 +88,92 @@ class Chunk:
     async def get_answer_async(self, query: str):
         # Асинхронный вызов
         return await self.get_answer(query)
+
+    # МЕТОД: распознавание изображения
+    #   param = {
+    #       image  - картинка в формате base64
+    #       text   - текст для роли 'user'
+    #   }    
+    # Возвращает текст
+    async def ocr_image(self, param: dict):
+
+        # заголовок
+        headers = {
+            'Content-Type': 'application/json',
+            'Authorization': f'Bearer {os.environ.get("OPENAI_API_KEY")}'
+        }
+        
+        # промпт
+        payload = {
+            'model': 'gpt-4o-mini',
+            'messages': [
+                {
+                    'role': 'user', 
+                    'content': [
+                        { 'type': 'text', 'text': param['text'] },
+                        {
+                            'type': 'image_url', 'image_url': {
+                                'url': f'data:image/jpeg;base64, {param["image"]}'
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+
+        # выполнение запроса
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                'https://api.openai.com/v1/chat/completions',
+                headers = headers,
+                json = payload
+            ) as response:
+                try:
+                    # получение результата
+                    result = await response.json()
+                    
+                    # обработка заголовков ограничения скорости
+                    rate_limit_headers = {
+                        'limit_requests': int(response.headers.get('x-ratelimit-limit-requests')),
+                        'limit_tokens': int(response.headers.get('x-ratelimit-limit-tokens')),
+                        'remaining_requests': int(response.headers.get('x-ratelimit-remaining-requests')),
+                        'remaining_tokens': int(response.headers.get('x-ratelimit-remaining-tokens')),
+                        'reset_tokens': int(response.headers.get('x-ratelimit-reset-tokens').replace('ms', '')),
+                        'reset_requests': int(float(response.headers.get('x-ratelimit-reset-requests').replace('s', '')) * 1000)
+                    }
+                    
+                    # проверка оставшихся запросов и токенов
+                    if rate_limit_headers['remaining_requests'] and rate_limit_headers['remaining_requests'] <= 0:
+                        reset_time = rate_limit_headers['reset_requests']
+                        time.sleep(reset_time)  # Задержка до сброса лимита
+
+                    if rate_limit_headers['remaining_tokens'] and rate_limit_headers['remaining_tokens'] <= 0:
+                        reset_time = rate_limit_headers['reset_tokens']
+                        time.sleep(reset_time)  # Задержка до сброса лимита
+
+                    # проверка на наличие ошибок в ответе
+                    if 'error' in result:
+                        message = result['error']['message']
+                        print(message)
+                        raise HTTPException(status_code = 400, detail = message)
+
+                    # получение ответа
+                    if 'choices' in result:                                           
+                        # ответ в формате текста
+                        return result['choices'][0]['message']['content']
+                    else:
+                        message = 'Response does not contain "choices"'
+                        print(message)
+                        raise HTTPException(status_code = 500, detail = message)
+
+                except aiohttp.ContentTypeError as e:
+                    message = f'ContentTypeError: {str(e)}'
+                    print(message)
+                    raise HTTPException(status_code = 500, detail = message)
+                except json.JSONDecodeError as e:
+                    message = f'JSONDecodeError: {str(e)}'
+                    print(message)
+                    raise HTTPException(status_code = 500, detail = message)
 
 # Запуск программы
 if __name__ == "__main__":
