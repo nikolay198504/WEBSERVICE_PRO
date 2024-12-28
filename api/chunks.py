@@ -2,6 +2,7 @@ from dotenv import load_dotenv
 import os
 import openai
 import asyncio
+import aiofiles
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.docstore.document import Document
 from langchain_community.vectorstores import FAISS
@@ -17,16 +18,18 @@ class Chunk:
         openai.api_key = os.getenv("OPENAI_API_KEY")
         if not openai.api_key:
             raise ValueError("Ключ API OpenAI не найден. Проверьте переменные окружения.")
-        self.base_load()
+        # Инициализация асинхронной загрузки базы данных
+        loop = asyncio.get_event_loop()
+        loop.create_task(self.base_load())
 
-    def base_load(self):
+    async def base_load(self):
         # Чтение базы знаний
         rules_path = os.path.join(os.path.dirname(__file__), 'base', 'Rules.txt')
         if not os.path.exists(rules_path):
             raise FileNotFoundError(f"Файл {rules_path} не найден.")
         
-        with open(rules_path, 'r', encoding='utf-8') as file:
-            document = file.read()
+        async with aiofiles.open(rules_path, 'r', encoding='utf-8') as file:
+            document = await file.read()
 
         # Разбиение текста на чанки
         splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=0)
@@ -48,6 +51,9 @@ class Chunk:
     async def get_answer(self, query: str):
         # Поиск в базе
         docs = self.db.similarity_search(query, k=4)
+        if not docs:
+            return "Извините, я не смог найти информацию для ответа на ваш вопрос."
+
         message_content = '\n'.join([doc.page_content for doc in docs])
 
         # Формирование промпта
@@ -68,11 +74,16 @@ class Chunk:
         # Инициализация ChatOpenAI
         chat = ChatOpenAI(model_name='gpt-4', temperature=0, openai_api_key=openai.api_key)
 
-        # Получение ответа
-        response = await chat.agenerate([messages])
+        try:
+            # Получение ответа
+            response = await chat.agenerate([messages])
+            return response.generations[0][0].text.strip()
+        except Exception as e:
+            return f"Произошла ошибка: {e}"
 
-        # Возвращаем текст ответа
-        return response.generations[0][0].text.strip()
+    async def get_answer_async(self, query: str):
+        # Асинхронный вызов
+        return await self.get_answer(query)
 
 # Запуск программы
 if __name__ == "__main__":
