@@ -89,11 +89,42 @@ class Chunk:
         # Асинхронный вызов
         return await self.get_answer(query)
 
+    # =============== НОВЫЙ МЕТОД REQUEST ===============
+    async def request(self, system: str, user: str, temp: float = 0.5, format: dict = None):
+        """
+        Асинхронный метод, который можно вызывать из эндпоинта /api/request.
+        :param system: Текст для роли 'system'.
+        :param user: Текст для роли 'user'.
+        :param temp: Температура (креативность) модели.
+        :param format: Словарь с дополнительными настройками (необязательно).
+        """
+        # Формируем список сообщений для ChatOpenAI
+        messages = []
+        if system:  # Если system не пустой, добавим SystemMessage
+            messages.append(SystemMessage(content=system))
+
+        # Добавляем сообщение пользователя
+        messages.append(HumanMessage(content=user))
+
+        # Инициализируем ChatOpenAI (LangChain)
+        chat = ChatOpenAI(
+            model_name='gpt-4',
+            temperature=temp,
+            openai_api_key=openai.api_key
+        )
+
+        try:
+            response = await chat.agenerate([messages])
+            return response.generations[0][0].text.strip()
+        except Exception as e:
+            return f"Произошла ошибка: {e}"
+    # ===================================================
+
     # МЕТОД: распознавание изображения
     #   param = {
     #       image  - картинка в формате base64
     #       text   - текст для роли 'user'
-    #   }    
+    #   }
     # Возвращает текст
     async def ocr_image(self, param: dict):
 
@@ -125,8 +156,8 @@ class Chunk:
         async with aiohttp.ClientSession() as session:
             async with session.post(
                 'https://api.openai.com/v1/chat/completions',
-                headers = headers,
-                json = payload
+                headers=headers,
+                json=payload
             ) as response:
                 try:
                     # получение результата
@@ -155,25 +186,25 @@ class Chunk:
                     if 'error' in result:
                         message = result['error']['message']
                         print(message)
-                        raise HTTPException(status_code = 400, detail = message)
+                        raise HTTPException(status_code=400, detail=message)
 
                     # получение ответа
-                    if 'choices' in result:                                           
-                        # ответ в формате текста
+                    if 'choices' in result:
                         return result['choices'][0]['message']['content']
                     else:
                         message = 'Response does not contain "choices"'
                         print(message)
-                        raise HTTPException(status_code = 500, detail = message)
+                        raise HTTPException(status_code=500, detail=message)
 
                 except aiohttp.ContentTypeError as e:
                     message = f'ContentTypeError: {str(e)}'
                     print(message)
-                    raise HTTPException(status_code = 500, detail = message)
+                    raise HTTPException(status_code=500, detail=message)
                 except json.JSONDecodeError as e:
                     message = f'JSONDecodeError: {str(e)}'
                     print(message)
-                    raise HTTPException(status_code = 500, detail = message)
+                    raise HTTPException(status_code=500, detail=message)
+
 
 # Запуск программы
 if __name__ == "__main__":
